@@ -21,7 +21,8 @@ setwd("/home/mclab/R/git/M.C.Lab/seq/ch11/")
  library(gridExtra)
  primer_f2=primer_f%>%DNAString()%>%reverseComplement()%>%as.character()
  primer_r2=primer_r%>%DNAString()%>%reverseComplement()%>%as.character()
-
+ primer=c(primer_f,primer_f2,primer_r,primer_r2)
+ 
 # filenames= getURL("ftp://140.109.56.5/104DATA/0504/",userpwd="rm208:167cm",verbose=TRUE,ftp.use.epsv=TRUE, dirlistonly = TRUE) %>%
 #   strsplit("[\\\\]|[^[:print:]]",fixed = FALSE) %>%
 #   unlist() %>% (function(x){x[grep('seq',x)]})
@@ -56,7 +57,7 @@ l.vec=array(dim=c(2,2,length(new_names)),
         dimnames = list(c(1:2),c('Start.pt','End.pt'),new_names))
 for (k in 1: length(new_names)){
   if(nrow(predict(db_vec,seq[k]))!=0){
-    num=predict(db_vec,seq[k])
+    num=predict(db_vec,seq[k])%>% (function(x){x[x$Mismatches<10,]})
     qs= num$Q.start
     qe= num$Q.end
     d3= data.frame(qs=qs, qe=qe)
@@ -91,7 +92,9 @@ for (k in 1: length(new_names)){
   }else{
     l.seq[1,,k]=c(1,l.vec[1,1,k]-1)
     l.seq[2,,k]=c(l.vec[1,2,k]+1,l.vec[2,1,k]-1)
-    l.seq[3,,k]=c(l.vec[2,2,k]+1,data_seq[k,3])
+    if(l.vec[2,2,k]!=data_seq[k,3]){
+      l.seq[3,,k]=c(l.vec[2,2,k]+1,data_seq[k,3])  
+    }
   }
 }
 
@@ -102,47 +105,57 @@ for (k in 1: length(new_names)){
     c=matrix(ncol=3,nrow=4)
     if(l.seq[3,1,k]%>%is.na()){
       for (i in 1:2){
-        c[,i]=c(
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_f,.),
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_f2,.),
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_r,.),
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_r2,.)
-        )
+        for (j in 1:4){
+          c[j,i]=s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer[j],.)
+        }
       }
     }else{
       for (i in 1:3){
-        c[,i]=c(
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_f,.),
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_f2,.),
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_r,.),
-          s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer_r2,.)
-        )
+        for (j in 1:4){
+          c[j,i]=s.seq[l.seq[i,1,k]:l.seq[i,2,k]]%>%as.character()%>%grepl(primer[j],.)
+        }
       }
     }
     if(!(grep('TRUE',c)/4)%>%isEmpty()){
       seq.pure[k]=seq[k]%>%
         unlist()%>%
-        (function(x){x[l.seq[grep('TRUE',c)/4 %>% ceiling(),1,k]:
-                         l.seq[grep('TRUE',c)/4 %>% ceiling(),2,k]]})%>%
+        (function(x){x[l.seq[(grep('TRUE',c)/4) %>% ceiling(),1,k]:
+                         l.seq[(grep('TRUE',c)/4) %>% ceiling(),2,k]]})%>%
         as("DNAStringSet")
     }
   }
 }
 
-c
+set=DNAStringSet(c(seq[1:10]))
+set
 
-seq.pure[k]=
-  exe=seq[k]%>%unlist()
-exe[l.seq[grep('TRUE',c)/4 %>% ceiling(),1,k]:
-      l.seq[grep('TRUE',c)/4 %>% ceiling(),2,k]]  
-
-(function(x){x[l.seq[grep('TRUE',c)/4 %>% ceiling(),1,k]:
-                   l.seq[grep('TRUE',c)/4 %>% ceiling(),2,k]]})%>%
-  as("DNAStringSet")
+msa=muscle(set)
 
 
+msa%>%unlist()
+detail(msa)
+print(msa)
+sink(file = "aln.il", type = "output")
+print(msa, from = 1, to = msa$length)
+sink()
+plot(mas,1,20)
+mas
+
+distCV(msa)
 
 
+#pure too short?
+#too many pri NOT FOUND?
+
+#
+testd=cbind(
+  seq@ranges%>%data.frame()%>%(function(x){x[,c(4,3)]}),
+  seq.pure@ranges%>%data.frame()%>%(function(x){x[,c(3)]})
+)
+colnames(testd)=c('names','ori','pure')
+testd2=data.frame(testd,pri=(testd$ori!=testd$pure))
+testd2
+testd2[,4]%>%summary()
 #
 
 #READ FASTA FILES
