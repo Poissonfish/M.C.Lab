@@ -25,4 +25,3 @@ db_names=getURL("ftp://ftp.ncbi.nlm.nih.gov/blast/db/",verbose=TRUE,ftp.use.epsv
   for (i in grep("^(?!.*md5)",db_names, perl=TRUE)){
     untar(db_names[i])
   }
- 

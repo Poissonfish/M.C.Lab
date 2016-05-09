@@ -1,5 +1,10 @@
 primer_f="GGTGCTCAAGGCGGGACATTCGTT"
 primer_r="TCGGGATTGGCCACAGCGTTGAC"
+source="ftp://140.109.56.5/104DATA/0504/"
+username="rm208"
+password="167cm"
+desdir="/home/mclab/R/git/M.C.Lab/seq/"
+
 setwd("/home/mclab/R/git/M.C.Lab/seq/ch11/")
 
 #INSTALLATION
@@ -10,7 +15,7 @@ setwd("/home/mclab/R/git/M.C.Lab/seq/ch11/")
  library(devtools)
  library(magrittr)
  library(seqinr)
- library(ape) #read.dna
+ library(ape) #read.dna, write.fasta
  library(data.table)
  library(lubridate)
  library(RCurl)
@@ -126,36 +131,82 @@ for (k in 1: length(new_names)){
   }
 }
 
-set=DNAStringSet(c(seq[1:10]))
-set
+data_seq=cbind(seq@ranges%>%data.frame()%>%(function(x){x[,c(4,3)]}),
+               seq.pure@ranges%>%data.frame()%>%(function(x){x[,c(3)]}))
+colnames(data_seq)=c('names','original','selected')
+data_seq=data.frame(data_seq,success=(data_seq$original!=data_seq$selected))
 
-msa=muscle(set)
+seq_names=data_seq[data_seq$success==TRUE,]$names %>%
+  (function(x){x[grep('_F',x)]}) %>%
+  gsub('_F.seq','',.)
 
+for (sn in 1:length(seq_names)){
+  set=DNAStringSet(seq.pure[grep(seq_names[sn],new_names)])
+  msa=muscle(set)
+  data_msa=msa%>% as.character()
+  
+  if(length(set)==2){
+    ident=c()
+    for (i in 1:ncol(data_msa)){
+      ident=c(ident,(data_msa[1,i]==data_msa[2,i]))
+    }
+    idnum=(1:ncol(data_msa))[ident==FALSE]
+  
+    if(isEmpty(idnum)!=TRUE){
+      if (length(idnum)!=1){
+        gap=c()
+        for(i in 2:length(idnum)){
+          gap=c(gap,idnum[i]-idnum[i-1])
+        }
+        if (mean(gap)!=1){
+          index_for=1:idnum[(1:length(gap))[gap==max(gap)]]
+          index_rev=idnum[(1:length(gap))[gap==max(gap)]+1]:ncol(data_msa)
+          index_con=(max(index_for)+1):(min(index_rev)-1)
+          seq_aln = c(data_msa[row.names(data_msa)%>%grep('F',.),index_for],
+                      data_msa[1,index_con],
+                      data_msa[row.names(data_msa)%>%grep('R',.),index_rev])
+          if(isEmpty(grep('-',seq_aln))!=TRUE){seq_aln=seq_aln[-grep('-',seq_aln)]}
+        }else{
+          if(mean(idnum)<mean(ncol(data_msa))){
+            if(data_msa[grep('R',rownames(data_msa)),1]=='-'){
+              seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
+                          data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
+            }else{
+              data_msa=data_msa[,-(data_msa[grep('F',rownames(data_msa)),]%>% grep('-',.))]
+              seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
+                          data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
+            }
+          }else{
+            if(data_msa[grep('F',rownames(data_msa)),1]=='-'){
+              seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
+                          data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
+            }else{
+              data_msa=data_msa[,-(data_msa[grep('R',rownames(data_msa)),]%>% grep('-',.))]
+              seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
+                          data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
+            }
+          }
+        }
+      }else{
+        seq_aln = c(data_msa[row.names(data_msa)%>%grep('F',.),1:idnum],
+                    data_msa[row.names(data_msa)%>%grep('R',.),(idnum+1):(ncol(data_msa))]) 
+        if(isEmpty(grep('-',seq_aln))!=TRUE){seq_aln=seq_aln[-grep('-',seq_aln)]}
+      } 
+    }else{
+      seq_aln = data_msa[1,]  
+    }
+    seq_aln%>%as.DNAbin()%>%write.fasta(names=seq_names[sn],file.out=paste(seq_names[sn],'.fasta',sep=''))
+  }
+}
 
-msa%>%unlist()
-detail(msa)
-print(msa)
-sink(file = "aln.il", type = "output")
-print(msa, from = 1, to = msa$length)
-sink()
-plot(mas,1,20)
-mas
-
-distCV(msa)
 
 
 #pure too short?
 #too many pri NOT FOUND?
-
+data_seq
 #
-testd=cbind(
-  seq@ranges%>%data.frame()%>%(function(x){x[,c(4,3)]}),
-  seq.pure@ranges%>%data.frame()%>%(function(x){x[,c(3)]})
-)
-colnames(testd)=c('names','ori','pure')
-testd2=data.frame(testd,pri=(testd$ori!=testd$pure))
-testd2
-testd2[,4]%>%summary()
+
+data_seq[,4]%>%summary()
 #
 
 #READ FASTA FILES
