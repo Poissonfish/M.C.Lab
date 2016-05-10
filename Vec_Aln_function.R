@@ -1,17 +1,58 @@
 primer_f="GGTGCTCAAGGCGGGACATTCGTT"
 primer_r="TCGGGATTGGCCACAGCGTTGAC"
+name_primer_f='SP6'
+name_primer_r='T7'
 source="ftp://140.109.56.5/104DATA/0504/"
 username="rm208"
 password="167cm"
-desdir="/home/mclab/R/git/M.C.Lab/seq/"
+desdir="/home/mclab/R/git/M.C.Lab"
 
+# W：A/T 
+# N：A/T/G/C 
+# M：A/C 
+# B：NOT A 
+# R：A/G 
+# V：NOT T 
+# K：T/G 
+# H：NOT G 
+# Y：T/C 
+# D：NOT C 
+# S：G/C 
+#INSTALLATION
+library(annotate)
+library(Biostrings) #DNAStringSet Object
+library(rBLAST)
+library(rMSA)
+library(devtools)
+library(magrittr)
+library(seqinr)
+library(ape) #read.dna, write.fasta
+library(data.table)
+library(lubridate)
+library(RCurl)
+library(magrittr)
+library(R.utils)
+library(downloader)
+library(ggplot2)
+library(gridExtra)
 
-VA=function(primer_f, primer_r, source, username, password, desdir){
-
+VA=function(primer_f, primer_r, name_primer_f, name_primer_r, source, username, password, desdir){
+  folder=source%>% strsplit('/') %>% unlist() %>% (function(x){x[length(x)]})
+  if (!file.exists(file.path(desdir,'seq',folder,'raw'))){
+    dir.create(file.path(desdir,'seq',folder,'raw'),recursive = TRUE)
+  }
+  if (!file.exists(file.path(desdir,'seq',folder,'fasta'))){
+    dir.create(file.path(desdir,'seq',folder,'fasta'),recursive = TRUE)
+  }
+  if (!file.exists(file.path(desdir,'seq',folder,'fasta.aln'))){
+    dir.create(file.path(desdir,'seq',folder,'fasta.aln'),recursive = TRUE)
+  }
+  
   primer_f2=primer_f%>%DNAString()%>%reverseComplement()%>%as.character()
   primer_r2=primer_r%>%DNAString()%>%reverseComplement()%>%as.character()
   primer=c(primer_f,primer_f2,primer_r,primer_r2)
   
+  setwd(file.path(desdir,'seq',folder,'raw'))
   filenames= getURL(source,userpwd=paste(username,':',password,sep=''),
                     verbose=TRUE,ftp.use.epsv=TRUE, dirlistonly = TRUE) %>%
              strsplit("[\\\\]|[^[:print:]]",fixed = FALSE) %>%
@@ -22,10 +63,13 @@ VA=function(primer_f, primer_r, source, username, password, desdir){
 
   for (i in 1:(length(filenames))){
     download.file(filepath[i],
-                  paste('./',filenames[i],sep=''))
+                  file.path(getwd(),filenames[i]))
                   }
   names=list.files()
-  new_names=list.files()%>% gsub("^[0-9][0-9]\\.","",.) %>% gsub("(T7)","_R",.) %>% gsub("(SP6)","_F",.)
+  new_names=list.files()%>% 
+    gsub("^[0-9][0-9]\\.","",.) %>% 
+    gsub(paste('(',name_primer_r,')',sep=''),"_R",.) %>% 
+    gsub(paste('(',name_primer_f,')',sep=''),"_F",.)
 
   for (j in 1:length(names)){
     text=readLines(names[j])
@@ -33,10 +77,11 @@ VA=function(primer_f, primer_r, source, username, password, desdir){
       text[i+1]=text[i]
     }
     text[1]=paste(">",new_names[j],sep='')
-    writeLines(text,new_names[j])
+    writeLines(text,file.path('../fasta',new_names[j]))
   }
   
-  db_vec= blast(db="../db/UniVec") 
+  setwd('../fasta')
+  db_vec= blast(db="../../../db/UniVec") 
   seq=readDNAStringSet(new_names)
   data_seq=seq@ranges %>% data.frame()
   index_r=new_names%>%grep('R',.)
@@ -107,8 +152,8 @@ VA=function(primer_f, primer_r, source, username, password, desdir){
       if(!(grep('TRUE',c)/4)%>%isEmpty()){
         seq.pure[k]=seq[k]%>%
           unlist()%>%
-          (function(x){x[l.seq[(grep('TRUE',c)/4) %>% ceiling(),1,k]:
-                           l.seq[(grep('TRUE',c)/4) %>% ceiling(),2,k]]})%>%
+          (function(x){x[l.seq[(grep('TRUE',c)/4) %>% ceiling()%>%mean(),1,k]:
+                         l.seq[(grep('TRUE',c)/4) %>% ceiling()%>%mean(),2,k]]})%>%
           as("DNAStringSet")
       }
     }
@@ -123,6 +168,7 @@ VA=function(primer_f, primer_r, source, username, password, desdir){
     (function(x){x[grep('_F',x)]}) %>%
     gsub('_F.seq','',.)
   
+  table_length=data.table()
   for (sn in 1:length(seq_names)){
     set=DNAStringSet(seq.pure[grep(seq_names[sn],new_names)])
     msa=muscle(set)
@@ -178,7 +224,54 @@ VA=function(primer_f, primer_r, source, username, password, desdir){
       }else{
         seq_aln = data_msa[1,]  
       }
+      setwd(file.path(desdir,'seq',folder,'fasta.aln'))
       seq_aln%>%as.DNAbin()%>%write.fasta(names=seq_names[sn],file.out=paste(seq_names[sn],'.fasta',sep=''))
+      table_length=rbind(table_length,data.table(seq_names[sn],
+                                                 length(seq_aln)))
     }
   }
+  sum_names= gsub('_F.seq','',data_seq$names) %>%
+             grep('_R',.,value=TRUE,invert=TRUE)
+  data_summary=matrix(nrow=length(sum_names),ncol=7)
+  colnames(data_summary)=c('seq.names','F_length_raw','R_length_raw','F_length_vs','R_length_vs','Suc_or_Fal','aln_length')
+  
+  for (su in 1:length(sum_names)){
+    index=data_seq$names %>% grep(paste(sum_names[su],'_',sep=''),.)    
+    index_f= index[data_seq$names[index] %>% grep('F',.)]
+    index_r= index[data_seq$names[index] %>% grep('R',.)]
+    data_summary[su,1]=sum_names[su]
+    if(index_f%>%isEmpty()){
+      data_summary[su,2]=NA
+      data_summary[su,3]=data_seq[index_r,2]
+      data_summary[su,4]=NA
+      data_summary[su,5]=data_seq[index_r,3]
+      data_summary[su,6]='Failure'
+      data_summary[su,7]=NA
+    }else if(index_r%>%isEmpty()){
+      data_summary[su,2]=data_seq[index_f,2]
+      data_summary[su,3]=NA
+      data_summary[su,4]=data_seq[index_f,3]
+      data_summary[su,5]=NA
+      data_summary[su,6]='Failure'
+      data_summary[su,7]=NA
+    }else{
+      data_summary[su,2]=data_seq[index_f,2]
+      data_summary[su,3]=data_seq[index_r,2]
+      data_summary[su,4]=data_seq[index_f,3]
+      data_summary[su,5]=data_seq[index_r,3]
+      data_summary[su,6]=if(data_seq[index_f,4]&data_seq[index_r,4]){'Success'}else{'Failure'}
+      if(!table_length[,V1]%>%grep(sum_names[su],.)%>%isEmpty()){
+        data_summary[su,7]=table_length[table_length[,V1]%>%grep(sum_names[su],.),V2]
+      }else{data_summary[su,7]=NA}
+    }
+  }
+  data_summary
+  #  
+
+  
+  
+  
+  
 }
+
+
