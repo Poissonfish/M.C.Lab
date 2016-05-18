@@ -1,17 +1,3 @@
-# #######################
-# folder='20489527'
-# primer_f="GGTGCTCAAGGCGGGACATTCGTT"
-# primer_r="TCGGGATTGGCCACAGCGTTGAC"
-# name_primer_f='SP6'
-# name_primer_r='T7'
-# #######################
-# source="ftp://140.109.56.5/104DATA/0504/"
-# username="rm208"
-# password="167cm"
-# #######################
-# local=TRUE
-# source_path='/home/mclab/R/git/M.C.Lab/seq/ch11-2048/raw'
-
 #INSTALLATION
 library(annotate)
 library(Biostrings) #DNAStringSet Object
@@ -32,7 +18,6 @@ library(gridExtra)
 library(plyr)
 library(taxize)
 library(rentrez)
-
 
 MCLab=function(primer_f, primer_r, name_primer_f, name_primer_r, source, username, password, desdir,folder,local_path, local, nt_search){
   packageStartupMessage("Creating Folders...", appendLF = FALSE)
@@ -245,74 +230,49 @@ MCLab=function(primer_f, primer_r, name_primer_f, name_primer_r, source, usernam
   seq_names=data_seq[data_seq$success==TRUE,]$names %>%
     (function(x){x[grep('_F',x)]}) %>%
     gsub('_F.fasta','',.)
-  
   table_length=data.table()
-  
-  
-  # for (sn in 1:length(seq_names)){
-    set=DNAStringSet(seq.pure[grep(paste0(seq_names[sn],'_'),new_names)])
-    aln.r=system(paste('blastn','-subject',set[1]%>%names,'-query',set[2]%>%names),intern=TRUE)
-    
-  #   msa=muscle(set)
-  #   data_msa=msa%>% as.character()
-  #   
-  #   if(length(set)==2){
-  #     ident=c()
-  #     for (i in 1:ncol(data_msa)){
-  #       ident=c(ident,(data_msa[1,i]==data_msa[2,i]))
-  #     }
-  #     idnum=(1:ncol(data_msa))[ident==FALSE]
-  # 
-  #     if(isEmpty(idnum)!=TRUE){
-  #       if (length(idnum)!=1){
-  #         gap=c()
-  #         for(i in 2:length(idnum)){
-  #           gap=c(gap,idnum[i]-idnum[i-1])
-  #         }
-  #         if (mean(gap)!=1){
-  #           index_for=1:idnum[(1:length(gap))[gap==max(gap)][(((1:length(gap))[gap==max(gap)] -(length(idnum)/2)) %>% abs() %>% order()) ==1]]
-  #           index_rev=idnum[(1:length(gap))[gap==max(gap)][(((1:length(gap))[gap==max(gap)] -(length(idnum)/2)) %>% abs() %>% order()) ==1]+1]:ncol(data_msa)
-  #           index_con=(max(index_for)+1):(min(index_rev)-1)
-  #           seq_aln = c(data_msa[row.names(data_msa)%>%grep('F',.),index_for],
-  #                       data_msa[1,index_con],
-  #                       data_msa[row.names(data_msa)%>%grep('R',.),index_rev])
-  #           if(isEmpty(grep('-',seq_aln))!=TRUE){seq_aln=seq_aln[-grep('-',seq_aln)]}
-  #         }else{
-  #           if(mean(idnum)<mean(ncol(data_msa))){
-  #             if(data_msa[grep('R',rownames(data_msa)),1]=='-'){
-  #               seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
-  #                           data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
-  #             }else{
-  #               data_msa=data_msa[,-(data_msa[grep('F',rownames(data_msa)),]%>% grep('-',.))]
-  #               seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
-  #                           data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
-  #             }
-  #           }else{
-  #             if(data_msa[grep('F',rownames(data_msa)),1]=='-'){
-  #               seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
-  #                           data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
-  #             }else{
-  #               data_msa=data_msa[,-(data_msa[grep('R',rownames(data_msa)),]%>% grep('-',.))]
-  #               seq_aln = c(data_msa[grep('F',rownames(data_msa)),1:((ncol(data_msa)/2)%>%ceiling())],
-  #                           data_msa[grep('R',rownames(data_msa)),(((ncol(data_msa)/2)%>%ceiling())+1):ncol(data_msa)])
-  #             }
-  #           }
-  #         }
-  #       }else{
-  #         seq_aln = c(data_msa[row.names(data_msa)%>%grep('F',.),1:idnum],
-  #                     data_msa[row.names(data_msa)%>%grep('R',.),(idnum+1):(ncol(data_msa))]) 
-  #         if(isEmpty(grep('-',seq_aln))!=TRUE){seq_aln=seq_aln[-grep('-',seq_aln)]}
-  #       } 
-  #     }else{
-  #       seq_aln = data_msa[1,]  
-  #     }
-  #     setwd(file.path(desdir,'seq',folder,'fasta.aln'))
-  #     seq_aln%>%as.DNAbin()%>%write.fasta(names=seq_names[sn],file.out=paste(seq_names[sn],'.fasta',sep=''))
-  #     table_length=rbind(table_length,data.table(seq_names[sn],length(seq_aln)))
-  #   }
-  # }
-  # seq.aln= readDNAStringSet(list.files())
-  # packageStartupMessage(" Done!")
+  for (sn in 1:length(seq_names)){
+    setwd(file.path(desdir,'seq',folder,'fasta'))
+    set=seq.pure[grep(paste0(seq_names[sn],'_'),new_names)]
+   if(length(set)==2){
+     set=DNAStringSet(c(set[names(set)%>%grep('_F',.)],set[names(set)%>%grep('_R',.)]))
+     aln.r=system(paste('blastn','-subject',set[2]%>%names,'-query',set[1]%>%names),intern=TRUE)
+     aln.r2=aln.r[(aln.r %>% grep('Score',.)%>%min()):
+                    ((aln.r %>% grep('Lambda',.)%>%min())-4)]
+     
+     aln.in=aln.r2 %>% grep('Score',.)
+     aln=matrix(nrow=length(aln.in), ncol=2)
+     for (i in 1:length(aln.in)){
+       aln[i,1]=aln.in[i]
+       if (i==length(aln.in)){
+         aln[i,2]=length(aln.r2)
+       }else(aln[i,2]=aln.in[i+1]-3)
+     }
+     aln.len=aln.r2%>% grep('Identities',.)
+     aln.bigind= aln.r2[aln.len] %>% 
+       strsplit(' ')%>% unlist() %>% 
+       (function(x){x[seq(4,length(x),9)]}) %>%
+       strsplit('/')%>% unlist() %>%
+       (function(x){x[seq(2,length(x),2)]}) %>%(function(x){x==max(x)})
+     aln.truind=aln[aln.bigind,]
+     aln.t=aln.r2[aln.truind[1]:aln.truind[2]]
+     aln.q=aln.t%>% grep('Query',.,value=TRUE)%>%gsub('[A-Z][a-z]*','',.)%>% strsplit(' ')%>%unlist()%>%as.numeric()%>%na.omit()
+     aln.s=aln.t%>% grep('Sbjct',.,value=TRUE)%>%gsub('[A-Z][a-z]*','',.)%>% strsplit(' ')%>%unlist()%>%as.numeric()%>%na.omit()
+     
+     if(mean(aln.q)>mean(aln.s)){
+       seq.aln=paste0(set[1]%>%as.character()%>% substr(1,mean(c(max(aln.q),min(aln.q)))),
+                      set[2]%>%as.character()%>% substr(mean(c(max(aln.s),min(aln.s)))+1,nchar(.))) %>% DNAStringSet()
+     }else{
+       seq.aln=paste0(set[2]%>%as.character()%>% substr(1,mean(c(max(aln.s),min(aln.s)))),
+                      set[1]%>%as.character()%>% substr(mean(c(max(aln.q),min(aln.q)))+1,nchar(.))) %>% DNAStringSet()
+     }
+     setwd(file.path(desdir,'seq',folder,'fasta.aln'))
+     seq.aln%>% as.DNAbin()%>%write.fasta(names=seq_names[sn],file.out=paste(seq_names[sn],'.fasta',sep=''))
+     table_length=rbind(table_length,data.table(seq_names[sn],seq.aln@ranges@width))
+     }
+  } 
+  seq.aln= readDNAStringSet(list.files())
+  packageStartupMessage(" Done!")
 
   if (nt_search){
     packageStartupMessage(paste0("Fetching sequence information...\nIt may take at least ",length(seq.aln)*3," mins to complete."), appendLF = FALSE)
