@@ -1,5 +1,5 @@
 #INSTALLATION
-library(annotate)
+library(annotate) 
 library(Biostrings) #DNAStringSet Object
 library(rBLAST)
 library(rMSA)
